@@ -2,27 +2,63 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ГК Гранель - 3D Тур</title>
   </head>
   <body>
     <div id="app">
-      <!-- Контейнер для 3D сцены -->
+      <!-- Контейнер для 3D -->
       <div id="canvas-container"></div>
 
-      <!-- Простое брендирование -->
+      <!-- Лоадер -->
+      <div id="loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Загрузка 3D-тура...</div>
+        <div class="loader-progress">
+          <div class="loader-progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="loader-percent" id="loader-percent">0%</div>
+      </div>
+
+      <!-- Брендирование -->
       <div id="branding">
         <span class="logo">ГК ГРАНЕЛЬ</span>
         <span class="separator">|</span>
         <span class="label">3D-тур</span>
       </div>
 
-      <!-- Информация о сцене -->
-      <div id="info">
-        <span>🖱 Вращайте мышкой</span>
-        <span class="separator">•</span>
-        <span>🔍 Скролл для приближения</span>
+      <!-- Информация о модели -->
+      <div id="model-info" style="display: none">
+        <div class="title">Квартира</div>
+        <div class="subtitle">Загрузка...</div>
+      </div>
+
+      <!-- НАВИГАЦИЯ (НОВОЕ!) -->
+      <div id="navigation">
+        <div class="nav-title">📍 Навигация</div>
+        <div class="nav-buttons">
+          <button class="nav-btn" data-point="overview">
+            <span class="nav-icon">🏠</span>
+            Общий вид
+          </button>
+          <button class="nav-btn" data-point="living-room">
+            <span class="nav-icon">🛋️</span>
+            Гостиная
+          </button>
+          <button class="nav-btn" data-point="kitchen">
+            <span class="nav-icon">🍳</span>
+            Кухня
+          </button>
+          <button class="nav-btn" data-point="bedroom">
+            <span class="nav-icon">🛏️</span>
+            Спальня
+          </button>
+        </div>
+      </div>
+
+      <!-- Индикатор текущей точки -->
+      <div id="current-point">
+        <span id="point-indicator">🏠 Общий вид</span>
       </div>
     </div>
 
