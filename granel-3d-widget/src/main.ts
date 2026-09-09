@@ -3,12 +3,12 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { Tween, Group, Easing } from "@tweenjs/tween.js";
-import { CAMERA_POINTS, type CameraPoint } from "./camera-points";
+import { CAMERA_POINTS, type CameraPoint, VIEWS } from "./camera-points";
 
-console.log("🚀 Запуск Granel 3D Widget (Итерация 3)");
+console.log("🚀 Запуск Granel 3D Widget");
 
 // ================================================
-// 1. СОЗДАЕМ ГРУППУ ДЛЯ АНИМАЦИЙ (НОВЫЙ API)
+// 1. TWEEN GROUP
 // ================================================
 const tweenGroup = new Group();
 
@@ -22,23 +22,37 @@ const loaderPercent = document.getElementById(
   "loader-percent",
 )! as HTMLDivElement;
 const loaderText = document.querySelector(".loader-text")! as HTMLDivElement;
-const modelInfo = document.getElementById("model-info")!;
-const modelTitle = modelInfo.querySelector(".title")!;
-const modelSubtitle = modelInfo.querySelector(".subtitle")!;
-const navigation = document.getElementById("navigation")!;
-const navButtons = document.querySelectorAll(".nav-btn")!;
-const pointIndicator = document.getElementById("point-indicator")!;
-const currentPoint = document.getElementById("current-point")!;
+const branding = document.getElementById("branding")!;
+const pointInfo = document.getElementById("point-info")!;
+const pointInfoName = pointInfo.querySelector(".point-info-name")!;
+const pointInfoArea = pointInfo.querySelector(".point-info-area")!;
+const togglePointsBtn = document.getElementById("togglePoints")!;
+const viewBtns = document.querySelectorAll(".view-btn")!;
+
+// Элементы текущей комнаты
+const currentRoom = document.getElementById("current-room")!;
+const roomIcon = currentRoom.querySelector(".room-icon")!;
+const roomName = currentRoom.querySelector(".room-name")!;
+const roomArea = currentRoom.querySelector(".room-area")!;
+
+// Элементы карты
+const miniMapContainer = document.getElementById("mini-map-container")!;
+const miniMapCanvas = document.getElementById(
+  "miniMapCanvas",
+)! as HTMLCanvasElement;
+const fullscreenMap = document.getElementById("fullscreen-map")!;
+const fullscreenMapCanvas = document.getElementById(
+  "fullscreenMapCanvas",
+)! as HTMLCanvasElement;
+const expandMapBtn = document.getElementById("expandMapBtn")!;
+const closeMapBtn = document.getElementById("closeMapBtn")!;
 
 // ================================================
-// 3. СОЗДАЕМ СЦЕНУ
+// 3. THREE.JS СЦЕНА
 // ================================================
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e);
+scene.background = new THREE.Color(0x0a0a1a);
 
-// ================================================
-// 4. СОЗДАЕМ КАМЕРУ
-// ================================================
 const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
@@ -47,9 +61,6 @@ const camera = new THREE.PerspectiveCamera(
 );
 camera.position.set(2.5, 1.8, 3.5);
 
-// ================================================
-// 5. СОЗДАЕМ РЕНДЕРЕР
-// ================================================
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   alpha: false,
@@ -62,9 +73,6 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
 container.appendChild(renderer.domElement);
 
-// ================================================
-// 6. НАСТРАИВАЕМ УПРАВЛЕНИЕ КАМЕРОЙ
-// ================================================
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
@@ -74,7 +82,7 @@ controls.target.set(0, 0.2, 0);
 controls.update();
 
 // ================================================
-// 7. ДОБАВЛЯЕМ ОСВЕЩЕНИЕ
+// 4. ОСВЕЩЕНИЕ
 // ================================================
 const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
 scene.add(ambientLight);
@@ -92,34 +100,514 @@ const hemiLight = new THREE.HemisphereLight(0x8888ff, 0x444422, 0.6);
 scene.add(hemiLight);
 
 // ================================================
-// 8. ЗАГРУЗЧИК МОДЕЛЕЙ
+// 5. ТОЧКИ НА СЦЕНЕ
 // ================================================
-const loaderGLTF = new GLTFLoader();
-let currentModel: THREE.Group | null = null;
+interface PointGroup {
+  marker: THREE.Mesh;
+  ring: THREE.Mesh;
+  iconSprite: THREE.Sprite;
+  labelSprite: THREE.Sprite;
+  point: CameraPoint;
+  isHovered: boolean;
+}
+
+const pointGroups: PointGroup[] = [];
+let pointsVisible = false;
+let hoveredPoint: CameraPoint | null = null;
+
+function createIconTexture(
+  icon: string,
+  size: number = 128,
+): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+
+  ctx.clearRect(0, 0, size, size);
+
+  const radius = size / 2 - 8;
+  const gradient = ctx.createRadialGradient(
+    size / 2,
+    size / 2,
+    0,
+    size / 2,
+    size / 2,
+    radius,
+  );
+  gradient.addColorStop(0, "rgba(255, 215, 0, 0.25)");
+  gradient.addColorStop(0.5, "rgba(255, 215, 0, 0.15)");
+  gradient.addColorStop(1, "rgba(255, 215, 0, 0.05)");
+
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(255, 215, 0, 0.6)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.font = `${size * 0.5}px Arial, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowBlur = 10;
+  ctx.fillText(icon, size / 2, size / 2 + 2);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+function createLabelTexture(
+  text: string,
+  area: string = "",
+): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d")!;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+
+  ctx.font = "bold 44px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2 - 6);
+
+  if (area) {
+    ctx.shadowBlur = 15;
+    ctx.font = "28px Arial, sans-serif";
+    ctx.fillStyle = "rgba(255, 215, 0, 0.8)";
+    ctx.fillText(area, canvas.width / 2, canvas.height / 2 + 44);
+  }
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+function createScenePoints() {
+  pointGroups.forEach((group) => {
+    scene.remove(group.marker);
+    scene.remove(group.ring);
+    scene.remove(group.iconSprite);
+    scene.remove(group.labelSprite);
+  });
+  pointGroups.length = 0;
+
+  CAMERA_POINTS.forEach((point) => {
+    const pos = point.markerPosition;
+
+    const markerGeo = new THREE.CircleGeometry(0.2, 32);
+    const markerMat = new THREE.MeshBasicMaterial({
+      color: 0xffd700,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+    });
+    const marker = new THREE.Mesh(markerGeo, markerMat);
+    marker.position.set(pos.x, pos.y, pos.z);
+    marker.userData = { point, isMarker: true };
+    scene.add(marker);
+
+    const ringGeo = new THREE.RingGeometry(0.22, 0.28, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xffd700,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set(pos.x, pos.y, pos.z);
+    ring.userData = { isRing: true };
+    scene.add(ring);
+
+    const iconTexture = createIconTexture(point.icon);
+    const iconMaterial = new THREE.SpriteMaterial({
+      map: iconTexture,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0,
+      sizeAttenuation: true,
+    });
+    const iconSprite = new THREE.Sprite(iconMaterial);
+    iconSprite.position.set(pos.x, pos.y, pos.z + 0.01);
+    iconSprite.scale.set(0.5, 0.5, 1);
+    scene.add(iconSprite);
+
+    const labelTexture = createLabelTexture(point.name, point.area || "");
+    const labelMaterial = new THREE.SpriteMaterial({
+      map: labelTexture,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0,
+      sizeAttenuation: true,
+    });
+    const labelSprite = new THREE.Sprite(labelMaterial);
+    labelSprite.position.set(pos.x, pos.y + 0.6, pos.z);
+    labelSprite.scale.set(1.6, 0.4, 1);
+    scene.add(labelSprite);
+
+    pointGroups.push({
+      marker,
+      ring,
+      iconSprite,
+      labelSprite,
+      point,
+      isHovered: false,
+    });
+  });
+}
+
+function updatePointsVisibility(visible: boolean) {
+  pointsVisible = visible;
+  pointGroups.forEach((group) => {
+    const opacity = visible ? 1 : 0;
+    group.marker.material.opacity = opacity * 0.3;
+    group.ring.material.opacity = opacity * 0.5;
+    group.iconSprite.material.opacity = opacity;
+    if (!group.isHovered) {
+      group.labelSprite.material.opacity = 0;
+    }
+  });
+}
+
+// ================================================
+// 6. ОПРЕДЕЛЕНИЕ БЛИЖАЙШЕЙ ТОЧКИ
+// ================================================
+function findClosestPoint(): CameraPoint | null {
+  const cameraPos = camera.position;
+  let closest: CameraPoint | null = null;
+  let minDist = Infinity;
+
+  CAMERA_POINTS.forEach((point) => {
+    const target = point.target;
+    const dist = cameraPos.distanceTo(
+      new THREE.Vector3(target.x, target.y, target.z),
+    );
+    if (dist < minDist) {
+      minDist = dist;
+      closest = point;
+    }
+  });
+
+  return closest;
+}
+
+function updateCurrentRoom() {
+  const point = findClosestPoint();
+  if (point) {
+    roomIcon.textContent = point.icon;
+    roomName.textContent = point.name;
+    roomArea.textContent = point.area || "3D-тур";
+  }
+}
+
+// ================================================
+// 7. РИСОВАНИЕ КАРТЫ
+// ================================================
+const mapPoints: { x: number; y: number; point: CameraPoint }[] = [];
+
+function drawMap(canvas: HTMLCanvasElement, isFullscreen: boolean = false) {
+  const parent = canvas.parentElement!;
+  const rect = parent.getBoundingClientRect();
+  const size = Math.min(rect.width, rect.height);
+
+  canvas.width = size * 2;
+  canvas.height = size * 2;
+  canvas.style.width = size + "px";
+  canvas.style.height = size + "px";
+
+  const ctx = canvas.getContext("2d")!;
+  const w = canvas.width;
+  const h = canvas.height;
+  const centerX = w / 2;
+  const centerY = h / 2;
+  const radius = Math.min(w, h) * 0.4;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Фон
+  ctx.fillStyle = "rgba(10, 10, 30, 0.6)";
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Очищаем массив точек карты
+  mapPoints.length = 0;
+
+  // Рисуем комнаты
+  const colors = ["#ffd700", "#ff6b6b", "#4ecdc4", "#45b7d1", "#f9ca24"];
+  const pointCount = CAMERA_POINTS.filter((p) => p.id !== "overview").length;
+  const angleStep = (Math.PI * 2) / pointCount;
+
+  // Сохраняем позиции точек для кликов
+  const pointPositions: { x: number; y: number; point: CameraPoint }[] = [];
+
+  CAMERA_POINTS.filter((p) => p.id !== "overview").forEach((point, index) => {
+    const angle = index * angleStep - Math.PI / 2;
+    const x = centerX + Math.cos(angle) * radius * 0.7;
+    const y = centerY + Math.sin(angle) * radius * 0.7;
+
+    pointPositions.push({ x, y, point });
+
+    // Круг комнаты
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, 20);
+    grad.addColorStop(0, colors[index % colors.length]);
+    grad.addColorStop(1, "rgba(255,255,255,0.05)");
+    ctx.beginPath();
+    ctx.arc(x, y, 18, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = colors[index % colors.length];
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Иконка
+    ctx.font = "20px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(point.icon, x, y + 1);
+
+    // Название (только на большой карте)
+    if (isFullscreen) {
+      ctx.font = "12px Arial";
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.fillText(point.name, x, y + 32);
+    }
+  });
+
+  // Сохраняем позиции для кликов
+  (canvas as any).pointPositions = pointPositions;
+
+  // Центральная точка
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffd700";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,215,0,0.5)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function updateMiniMap() {
+  drawMap(miniMapCanvas, false);
+}
+
+function updateFullscreenMap() {
+  drawMap(fullscreenMapCanvas, true);
+}
+
+// ================================================
+// 8. КАРТА: ОТКРЫТИЕ/ЗАКРЫТИЕ
+// ================================================
+function openFullscreenMap() {
+  fullscreenMap.style.display = "flex";
+  setTimeout(() => updateFullscreenMap(), 50);
+}
+
+function closeFullscreenMap() {
+  fullscreenMap.style.display = "none";
+}
+
+// Клик по мини-карте
+miniMapContainer.addEventListener("click", openFullscreenMap);
+expandMapBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  openFullscreenMap();
+});
+closeMapBtn.addEventListener("click", closeFullscreenMap);
+
+// Клик по точкам на полноэкранной карте
+fullscreenMapCanvas.addEventListener("click", (event) => {
+  const rect = fullscreenMapCanvas.getBoundingClientRect();
+  const scaleX = fullscreenMapCanvas.width / rect.width;
+  const scaleY = fullscreenMapCanvas.height / rect.height;
+
+  const mouseX = (event.clientX - rect.left) * scaleX;
+  const mouseY = (event.clientY - rect.top) * scaleY;
+
+  const positions = (fullscreenMapCanvas as any).pointPositions || [];
+
+  let found = false;
+  for (const pos of positions) {
+    const dist = Math.sqrt((mouseX - pos.x) ** 2 + (mouseY - pos.y) ** 2);
+    if (dist < 30) {
+      // Нашли точку!
+      flyToPoint(pos.point);
+      closeFullscreenMap();
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    console.log("Клик мимо точек");
+  }
+});
+
+// ================================================
+// 9. РЕЙКАСТ ПО ТОЧКЕ ДЛЯ ВЗАИМОДЕЙСТВИЯ
+// ================================================
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let isHovering = false;
+
+function onPointerMove(event: PointerEvent) {
+  if (!pointsVisible) {
+    if (isHovering) {
+      hidePointInfo();
+      resetAllMarkers();
+      isHovering = false;
+    }
+    return;
+  }
+
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(pointer, camera);
+
+  const markers = pointGroups.map((g) => g.marker);
+  const intersects = raycaster.intersectObjects(markers);
+
+  // Сначала сбрасываем все
+  resetAllMarkers();
+
+  if (intersects.length > 0) {
+    const hit = intersects[0].object;
+    const point = hit.userData.point as CameraPoint;
+    const group = pointGroups.find((g) => g.point.id === point.id);
+
+    if (group) {
+      group.marker.scale.set(1.6, 1.2, 1);
+      group.ring.scale.set(1.6, 1.2, 1);
+      group.labelSprite.material.opacity = 1;
+      group.isHovered = true;
+
+      showPointInfo(point);
+      hoveredPoint = point;
+      isHovering = true;
+      renderer.domElement.style.cursor = "pointer";
+    }
+  } else {
+    hidePointInfo();
+    hoveredPoint = null;
+    isHovering = false;
+    renderer.domElement.style.cursor = "default";
+  }
+}
+
+function resetAllMarkers() {
+  pointGroups.forEach((group) => {
+    group.marker.scale.set(1, 1, 1);
+    group.ring.scale.set(1, 1, 1);
+    if (!group.isHovered) {
+      group.labelSprite.material.opacity = 0;
+    }
+    group.isHovered = false;
+  });
+}
+
+function showPointInfo(point: CameraPoint) {
+  const pointInfo = document.getElementById("point-info")!;
+  pointInfo.style.display = "block";
+  pointInfo.querySelector(".point-info-name")!.textContent =
+    point.icon + " " + point.name;
+  pointInfo.querySelector(".point-info-area")!.textContent = point.area || "";
+}
+
+function hidePointInfo() {
+  const pointInfo = document.getElementById("point-info")!;
+  pointInfo.style.display = "none";
+}
+
+// ================================================
+// 10. КЛИК ПО ТОЧКЕ
+// ================================================
+function onPointerDown(event: PointerEvent) {
+  if (!pointsVisible || !hoveredPoint) return;
+  flyToPoint(hoveredPoint);
+}
+
+// ================================================
+// 11. UI КНОПКИ
+// ================================================
+
+// Кнопки видов
+viewBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const view = btn.dataset.view;
+    if (!view) return;
+
+    viewBtns.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const pointId = VIEWS[view as keyof typeof VIEWS];
+    const point = CAMERA_POINTS.find((p) => p.id === pointId);
+    if (point) {
+      flyToPoint(point);
+      // Обновляем комнату после перелета
+      setTimeout(() => updateCurrentRoom(), 100);
+    }
+  });
+});
+
+// Кнопка показа точек
+togglePointsBtn.addEventListener("click", () => {
+  pointsVisible = !pointsVisible;
+  togglePointsBtn.classList.toggle("active");
+  updatePointsVisibility(pointsVisible);
+  if (!pointsVisible) {
+    hidePointInfo();
+    resetAllMarkers();
+    hoveredPoint = null;
+    isHovering = false;
+  }
+});
+
+viewBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const view = btn.dataset.view;
+    if (!view) return;
+
+    viewBtns.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const pointId = VIEWS[view as keyof typeof VIEWS];
+    const point = CAMERA_POINTS.find((p) => p.id === pointId);
+    if (point) flyToPoint(point);
+  });
+});
+
+// ================================================
+// 12. EVENTS
+// ================================================
+renderer.domElement.addEventListener("pointermove", onPointerMove);
+renderer.domElement.addEventListener("pointerdown", onPointerDown);
+
+// ================================================
+// 13. ФУНКЦИЯ ПЕРЕЛЕТА
+// ================================================
 let isAnimating = false;
 let activeTweens: Tween[] = [];
 
-// ================================================
-// 9. ФУНКЦИЯ ПЛАВНОГО ПЕРЕЛЕТА (НОВЫЙ API)
-// ================================================
+function flyToPoint(point: CameraPoint, duration: number = 1200) {
+  console.log(`📍 Перелет к: ${point.name}`);
 
-function flyToPoint(point: CameraPoint, duration: number = 1500) {
-  console.log(`📍 Перелет к точке: ${point.name}`);
-  console.log(`   Цель позиция:`, point.position);
-  console.log(`   Цель взгляда:`, point.target);
-
-  // Останавливаем все текущие анимации
   if (isAnimating) {
-    console.log("   ⏹ Останавливаем предыдущую анимацию");
-    activeTweens.forEach((tween) => tween.stop());
+    activeTweens.forEach((t) => t.stop());
     activeTweens = [];
     isAnimating = false;
   }
 
-  // Отключаем контролы во время анимации
   controls.enabled = false;
 
-  // Текущие позиции
   const startPos = {
     x: camera.position.x,
     y: camera.position.y,
@@ -132,261 +620,102 @@ function flyToPoint(point: CameraPoint, duration: number = 1500) {
     z: controls.target.z,
   };
 
-  console.log("   Старт позиция:", startPos);
-  console.log("   Старт взгляд:", startTarget);
+  const posTween = new Tween(startPos, tweenGroup)
+    .to(point.position, duration)
+    .easing(Easing.Cubic.InOut)
+    .onUpdate(() => camera.position.set(startPos.x, startPos.y, startPos.z));
 
-  try {
-    // ========== АНИМАЦИЯ ПОЗИЦИИ КАМЕРЫ ==========
-    const posTween = new Tween(startPos, tweenGroup)
-      .to(
-        {
-          x: point.position.x,
-          y: point.position.y,
-          z: point.position.z,
-        },
-        duration,
-      )
-      .easing(Easing.Cubic.InOut)
-      .onUpdate(() => {
-        camera.position.set(startPos.x, startPos.y, startPos.z);
-      })
-      .onStart(() => console.log("   ▶ Анимация позиции началась"))
-      .onComplete(() => console.log("   ✅ Анимация позиции завершена"));
-
-    // ========== АНИМАЦИЯ ЦЕЛИ (куда смотрим) ==========
-    const targetTween = new Tween(startTarget, tweenGroup)
-      .to(
-        {
-          x: point.target.x,
-          y: point.target.y,
-          z: point.target.z,
-        },
-        duration,
-      )
-      .easing(Easing.Cubic.InOut)
-      .onUpdate(() => {
-        controls.target.set(startTarget.x, startTarget.y, startTarget.z);
-      })
-      .onStart(() => console.log("   ▶ Анимация взгляда началась"))
-      .onComplete(() => console.log("   ✅ Анимация взгляда завершена"));
-
-    // Сохраняем и запускаем
-    activeTweens = [posTween, targetTween];
-    posTween.start();
-    targetTween.start();
-
-    isAnimating = true;
-
-    // По окончании
-    setTimeout(() => {
-      isAnimating = false;
+  const targetTween = new Tween(startTarget, tweenGroup)
+    .to(point.target, duration)
+    .easing(Easing.Cubic.InOut)
+    .onUpdate(() =>
+      controls.target.set(startTarget.x, startTarget.y, startTarget.z),
+    )
+    .onComplete(() => {
       controls.enabled = true;
-      activeTweens = [];
-      console.log(`   ✅ Перелет к "${point.name}" завершен`);
-      console.log(`   Текущая позиция:`, camera.position);
-      console.log(`   Текущий взгляд:`, controls.target);
-    }, duration + 100);
+      isAnimating = false;
+      updateCurrentRoom(); // Обновляем комнату
+    });
 
-    updatePointIndicator(point);
-    updateActiveButton(point.id);
-  } catch (error) {
-    console.error("❌ Ошибка при создании анимации:", error);
-    controls.enabled = true;
-  }
-}
-
-function updatePointIndicator(point: CameraPoint) {
-  pointIndicator.textContent = `${point.icon} ${point.name}`;
-  currentPoint.classList.add("visible");
-
-  clearTimeout((window as any).indicatorTimeout);
-  (window as any).indicatorTimeout = setTimeout(() => {
-    currentPoint.classList.remove("visible");
-  }, 3000);
-}
-
-function updateActiveButton(pointId: string) {
-  navButtons.forEach((btn) => {
-    btn.classList.remove("active");
-    if (btn.getAttribute("data-point") === pointId) {
-      btn.classList.add("active");
-    }
-  });
+  activeTweens = [posTween, targetTween];
+  posTween.start();
+  targetTween.start();
+  isAnimating = true;
 }
 
 // ================================================
-// 10. НАСТРАИВАЕМ КНОПКИ
+// 14. ЗАГРУЗКА МОДЕЛИ
 // ================================================
-
-navButtons.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const pointId = btn.getAttribute("data-point");
-    console.log(`🔘 Нажата кнопка: ${pointId}`);
-
-    const point = CAMERA_POINTS.find((p) => p.id === pointId);
-    if (point) {
-      flyToPoint(point);
-    }
-  });
-});
-
-// ================================================
-// 11. ТЕСТОВЫЕ ФУНКЦИИ
-// ================================================
-
-(window as any).testFly = (pointId?: string) => {
-  const point = pointId
-    ? CAMERA_POINTS.find((p) => p.id === pointId)
-    : CAMERA_POINTS[0];
-  if (point) flyToPoint(point);
-};
-
-(window as any).CAMERA_POINTS = CAMERA_POINTS;
-
-// ================================================
-// 12. ЗАГРУЗКА МОДЕЛИ
-// ================================================
+const loaderGLTF = new GLTFLoader();
+let currentModel: THREE.Group | null = null;
 
 function loadModel(url: string) {
-  console.log(`📦 Начинаем загрузку: ${url}`);
-
   showLoader(true);
   updateProgress(0);
 
   loaderGLTF.load(
     url,
     (gltf) => {
-      console.log("✅ Модель успешно загружена!");
+      console.log("✅ Модель загружена");
       onModelLoaded(gltf.scene);
     },
     (progress) => {
       const percent =
         progress.total > 0 ? (progress.loaded / progress.total) * 100 : 0;
       updateProgress(percent);
-      updateLoaderText(`Загрузка... ${Math.round(percent)}%`);
     },
     (error) => {
-      console.error("❌ Ошибка загрузки:", error);
+      console.error("❌ Ошибка:", error);
       onModelError(error);
     },
   );
 }
 
 function onModelLoaded(model: THREE.Group) {
-  if (currentModel) {
-    scene.remove(currentModel);
-    currentModel = null;
-  }
-
+  if (currentModel) scene.remove(currentModel);
   currentModel = model;
   model.scale.set(1, 1, 1);
   model.position.set(0, 0, 0);
-
   model.traverse((child) => {
     if (child instanceof THREE.Mesh) {
       child.castShadow = true;
       child.receiveShadow = true;
     }
   });
-
   scene.add(model);
   fitCameraToModel(model);
-
   showLoader(false);
-  showModelInfo(true, "Квартира", "Модель загружена ✅");
 
-  navigation.classList.add("visible");
-
-  const overviewPoint = CAMERA_POINTS.find((p) => p.id === "overview");
-  if (overviewPoint) {
-    updatePointIndicator(overviewPoint);
-    updateActiveButton("overview");
-  }
-
-  console.log(`📊 Полигонов: ${countPolygons(model)}`);
-
-  // Автоматический тестовый перелет
-  setTimeout(() => {
-    console.log('🔄 Авто-тест: перелет на "Спереди"...');
-    const testPoint = CAMERA_POINTS.find((p) => p.id === "living-room");
-    if (testPoint) flyToPoint(testPoint);
-  }, 1500);
-}
-
-function onModelError(error: any) {
-  console.error("❌ Ошибка загрузки модели:", error);
-  updateLoaderText("❌ Ошибка загрузки модели");
-
-  setTimeout(() => {
-    showLoader(false);
-    createFallbackObject();
-  }, 2000);
-}
-
-function createFallbackObject() {
-  console.log("🔄 Создаем тестовый объект");
-
-  const geometry = new THREE.IcosahedronGeometry(1.2, 2);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xffd700,
-    metalness: 0.3,
-    roughness: 0.4,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  scene.add(mesh);
-
-  currentModel = new THREE.Group();
-  currentModel.add(mesh);
-
-  showModelInfo(true, "Тестовый объект", "Модель не найдена");
-  navigation.classList.add("visible");
+  createScenePoints();
+  updateCurrentRoom();
+  updateMiniMap();
 }
 
 function fitCameraToModel(model: THREE.Group) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-
   const maxDim = Math.max(size.x, size.y, size.z);
   const distance = maxDim * 2.5;
-
   controls.target.copy(center);
   camera.position.set(
     center.x + distance * 0.5,
     center.y + distance * 0.3,
     center.z + distance,
   );
-  camera.lookAt(center);
   controls.update();
 }
 
-function countPolygons(model: THREE.Group): number {
-  let count = 0;
-  model.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      const geom = child.geometry;
-      if (geom.index) {
-        count += geom.index.count / 3;
-      } else if (geom.attributes.position) {
-        count += geom.attributes.position.count / 3;
-      }
-    }
-  });
-  return Math.round(count);
+function onModelError(error: any) {
+  console.error("❌ Ошибка:", error);
+  showLoader(false);
 }
 
 // ================================================
-// 13. UI ФУНКЦИИ
+// 15. UI ФУНКЦИИ
 // ================================================
-
 function showLoader(show: boolean) {
   loader.style.display = show ? "flex" : "none";
-}
-
-function updateLoaderText(text: string) {
-  loaderText.textContent = text;
 }
 
 function updateProgress(percent: number) {
@@ -395,78 +724,52 @@ function updateProgress(percent: number) {
   loaderPercent.textContent = `${Math.round(clamped)}%`;
 }
 
-function showModelInfo(show: boolean, title: string, subtitle: string) {
-  if (show) {
-    modelInfo.style.display = "block";
-    modelTitle.textContent = title;
-    modelSubtitle.textContent = subtitle;
-  } else {
-    modelInfo.style.display = "none";
-  }
-}
-
 // ================================================
-// 14. АНИМАЦИОННЫЙ ЦИКЛ (НОВЫЙ API)
+// 16. АНИМАЦИЯ
 // ================================================
-
 function animate() {
   requestAnimationFrame(animate);
 
-  // Обновляем группу анимаций (НОВЫЙ API)
   tweenGroup.update();
-
   controls.update();
   renderer.render(scene, camera);
 }
 animate();
 
 // ================================================
-// 15. RESIZE
+// 17. RESIZE
 // ================================================
-
 window.addEventListener("resize", () => {
   const width = window.innerWidth;
   const height = window.innerHeight;
-
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
+
+  updateMiniMap();
 });
 
 // ================================================
-// 16. ЗАПУСК
+// 18. ЗАПУСК
 // ================================================
-
-console.log("📦 Загружаем модель...");
-
 const MODEL_URL =
   "https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf";
 loadModel(MODEL_URL);
 
-setTimeout(() => {
-  if (!currentModel) {
-    console.log("⏳ Таймаут. Создаем тестовый объект.");
-    showLoader(false);
-    createFallbackObject();
-  }
-}, 10000);
-
 // ================================================
-// 17. API
+// 19. API
 // ================================================
-
 (window as any).GranelWidget = {
   flyTo: (pointId: string) => {
     const point = CAMERA_POINTS.find((p) => p.id === pointId);
     if (point) flyToPoint(point);
   },
-  getPoints: () => CAMERA_POINTS,
-  resetCamera: () => {
-    const overview = CAMERA_POINTS.find((p) => p.id === "overview");
-    if (overview) flyToPoint(overview);
+  togglePoints: () => {
+    pointsVisible = !pointsVisible;
+    togglePointsBtn.classList.toggle("active");
+    updatePointsVisibility(pointsVisible);
   },
 };
 
 console.log("✅ Виджет готов!");
 console.log("📖 API: window.GranelWidget");
-console.log('🔧 Тест: window.testFly("kitchen")');

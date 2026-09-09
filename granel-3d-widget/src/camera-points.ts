@@ -1,51 +1,64 @@
 export interface CameraPoint {
   id: string;
   name: string;
-  icon: string;
+  area?: string;
+  icon: string; // Эмодзи или символ комнаты
   position: { x: number; y: number; z: number };
   target: { x: number; y: number; z: number };
-  description?: string;
+  markerPosition: { x: number; y: number; z: number };
 }
 
 export const CAMERA_POINTS: CameraPoint[] = [
   {
     id: "overview",
     name: "Общий вид",
+    area: "3D-тур",
     icon: "🏠",
     position: { x: 2.5, y: 1.8, z: 3.5 },
     target: { x: 0, y: 0.3, z: 0 },
-    description: "Вид на модель",
+    markerPosition: { x: 0, y: 0.3, z: 0 },
   },
   {
     id: "living-room",
-    name: "Спереди",
-    icon: "👀",
-    position: { x: 0, y: 0.8, z: 3 },
+    name: "Гостиная",
+    area: "24,5 м²",
+    icon: "🛋️",
+    position: { x: 1.2, y: 0.8, z: 2.5 },
     target: { x: 0, y: 0.3, z: 0 },
-    description: "Фронтальный вид",
+    markerPosition: { x: 0.8, y: 0.3, z: 1.5 },
   },
   {
     id: "kitchen",
-    name: "Сбоку",
-    icon: "🔍",
-    position: { x: 3.5, y: 0.8, z: 0 },
+    name: "Кухня",
+    area: "14,67 м²",
+    icon: "🍳",
+    position: { x: -1.5, y: 0.8, z: 2.5 },
     target: { x: 0, y: 0.3, z: 0 },
-    description: "Вид справа",
+    markerPosition: { x: -1.2, y: 0.3, z: 1.5 },
   },
   {
     id: "bedroom",
-    name: "Сверху",
-    icon: "⬇️",
-    position: { x: 0, y: 3.5, z: 0.01 },
-    target: { x: 0, y: 0, z: 0 },
-    description: "Вид сверху",
+    name: "Спальня",
+    area: "18,2 м²",
+    icon: "🛏️",
+    position: { x: -2.0, y: 0.8, z: -1.5 },
+    target: { x: 0, y: 0.3, z: 0 },
+    markerPosition: { x: -1.2, y: 0.3, z: -1.2 },
   },
   {
     id: "bathroom",
-    name: "Крупно",
-    icon: "🔎",
-    position: { x: 0.8, y: 1.0, z: 1.8 },
-    target: { x: 0, y: 0.4, z: 0 },
-    description: "Детальный вид",
+    name: "Ванная",
+    area: "8,3 м²",
+    icon: "🚿",
+    position: { x: 1.8, y: 0.8, z: -1.8 },
+    target: { x: 0, y: 0.3, z: 0 },
+    markerPosition: { x: 1.2, y: 0.3, z: -1.2 },
   },
 ];
+
+// Предустановленные виды
+export const VIEWS = {
+  "3d": "overview",
+  perspective: "living-room",
+  top: "bedroom",
+};
