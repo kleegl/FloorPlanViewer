@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37216.2
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Granel3D.Api", "src\Granel3D.Api\Granel3D.Api.csproj", "{6D001ADE-83C4-4880-BBC9-72B85F0291EF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Granel3D.Domain", "src\Granel3D.Domain\Granel3D.Domain.csproj", "{8EACB447-B5ED-4461-924F-A52D75B9B234}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Granel3D.Application", "src\Granel3D.Application\Granel3D.Application.csproj", "{DBCE35A2-28B6-49A1-B2B4-E8E89E04338E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Granel3D.Infrastructure", "src\Granel3D.Infrastructure\Granel3D.Infrastructure.csproj", "{8C9DC3EB-86EA-43EF-8C1F-BC63C6C5982E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6D001ADE-83C4-4880-BBC9-72B85F0291EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D001ADE-83C4-4880-BBC9-72B85F0291EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D001ADE-83C4-4880-BBC9-72B85F0291EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D001ADE-83C4-4880-BBC9-72B85F0291EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8EACB447-B5ED-4461-924F-A52D75B9B234}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8EACB447-B5ED-4461-924F-A52D75B9B234}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8EACB447-B5ED-4461-924F-A52D75B9B234}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8EACB447-B5ED-4461-924F-A52D75B9B234}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DBCE35A2-28B6-49A1-B2B4-E8E89E04338E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBCE35A2-28B6-49A1-B2B4-E8E89E04338E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBCE35A2-28B6-49A1-B2B4-E8E89E04338E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBCE35A2-28B6-49A1-B2B4-E8E89E04338E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8C9DC3EB-86EA-43EF-8C1F-BC63C6C5982E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8C9DC3EB-86EA-43EF-8C1F-BC63C6C5982E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8C9DC3EB-86EA-43EF-8C1F-BC63C6C5982E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8C9DC3EB-86EA-43EF-8C1F-BC63C6C5982E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C3175C26-23F3-4D5F-B046-0C9680C7A7A2}
+	EndGlobalSection
+EndGlobal
