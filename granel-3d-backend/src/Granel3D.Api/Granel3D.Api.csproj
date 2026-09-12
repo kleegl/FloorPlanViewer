@@ -29,6 +29,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <ProjectReference Include="..\Granel3D.Application\Granel3D.Application.csproj" />
 	  <ProjectReference Include="..\Granel3D.Infrastructure\Granel3D.Infrastructure.csproj" />
 	</ItemGroup>
 

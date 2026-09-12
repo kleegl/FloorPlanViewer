@@ -17,6 +17,8 @@ public static class WebApplicationExtensions
             });
         }
 
+        ExceptionHandlingMiddlewareExtensions.UseExceptionHandlingMiddleware(app);
+
         app.UseSerilogRequestLogging();
 
         app.UseCors("WidgetPolicy");

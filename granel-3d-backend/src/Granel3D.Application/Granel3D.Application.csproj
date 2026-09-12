@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Granel3D.Domain\Granel3D.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

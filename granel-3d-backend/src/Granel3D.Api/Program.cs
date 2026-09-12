@@ -1,4 +1,6 @@
 using Granel3D.Api.Extensions;
+using Granel3D.Application;
+using Granel3D.Application.Interfaces;
 using Granel3D.Infrastructure;
 using Serilog;
 
@@ -13,8 +15,16 @@ builder.Host.UseSerilog((context, services, loggerConfig) =>
 
 builder.Services.AddApiServices(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var storage = scope.ServiceProvider.GetRequiredService<IStorageService>();
+    await storage.EnsureBucketExistsAsync();
+}
 
 app.UseApiPipeline();
 
